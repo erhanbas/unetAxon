@@ -8,6 +8,7 @@ import numpy as np
 from nets.unet import generate_batch_norm_unet
 from nets.unet3d import generate_unet, generate_3D_unet
 from utils.image import ImageDataGenerator
+from utils.multi_gpu import make_parallel
 from utils.dice import dice_coef
 import h5py
 import os
