@@ -67,7 +67,7 @@ input_f = input_f.replace('/','//')
 inputfile_handle = h5py.File(input_f,'r')
 d_set = inputfile_handle['volume']
 
-binary_mask = to_categorical(d_set, num_classes=2)
+binary_mask = to_categorical(d_set, num_classes=3)
 
 print ('Binary shape: ',binary_mask.shape)
 
