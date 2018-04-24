@@ -8,16 +8,17 @@ import numpy as np
 from nets.unet import generate_batch_norm_unet
 from nets.unet3d import generate_unet, generate_3D_unet
 from utils.image import ImageDataGenerator
+from utils import custom_generator
 from utils.multi_gpu import make_parallel
 from utils.dice import dice_coef
 import h5py
 import os
-
-
+from keras.preprocessing.image import ImageDataGenerator as IDG
 #Import specific keras classes
 from keras.optimizers import Adam
 from keras.callbacks import  ModelCheckpoint, CSVLogger, ReduceLROnPlateau
 from keras.utils import to_categorical
+from sklearn.model_selection import train_test_split
 
 
 #Make sure we remove any randomness
@@ -63,52 +64,24 @@ input_folder = '/Users/base/Dropbox (HHMI)/DATA/annotated_neuron'
 
 # inputfile_path = 'r"'+os.path.join(input_folder,'2017-09-25_G-007_consensus-annotation.h5')+'"'
 
+input_f = '/Users/base/Dropbox (HHMI)/DATA/annotated_neuron/2017-09-25_G-007_consensus-training_raw.h5'
+input_f = input_f.replace('/','//')
+inputfile_handle = h5py.File(input_f,'r')
+d_set_raw = inputfile_handle['volume'][:,0,:,:,:]
+
 input_f = '/Users/base/Dropbox (HHMI)/DATA/annotated_neuron/2017-09-25_G-007_consensus-training_dense_label.h5'
 input_f = input_f.replace('/','//')
 inputfile_handle = h5py.File(input_f,'r')
 d_set = inputfile_handle['volume']
-
 binary_mask = to_categorical(d_set, num_classes=3)
 
 print ('Binary shape: ',binary_mask.shape)
 
-plt.figure(figsize=(12,6))
-ax = plt.subplot(1, 3, 1)
-ax.set_title('Background')
-ax.imshow(binary_mask[...,0], cmap=cm.Greys_r, interpolation='none')
-ax.axis('off')
-ax = plt.subplot(1, 3, 2)
-ax.set_title('Right Lung')
-ax.imshow(binary_mask[...,1], cmap=cm.Greys_r, interpolation='none')
-ax.axis('off')
-ax = plt.subplot(1, 3, 3)
-ax.set_title('Left Lung')
-ax.imshow(binary_mask[...,2], cmap=cm.Greys_r, interpolation='none')
-ax.axis('off')
-
-
-def custom_image_generator(generator, directory, seed=None, batch_size=16, target_size=(128, 128),
-                           color_mode="grayscale", class_mode=None, isMask=False, num_classes=None):
-    """
-    Read images from a dirctory batch-size wise
-    If images are masks (e.g. 128x128x1) then convert them to multi-label arrays (e.g. 128x128x3) so that they match the output of UNet
-    """
-    import numpy as np
-
-    # Read from directory (flow_from_directory)
-    iterator = generator.flow_from_directory(directory=directory,
-                                             target_size=target_size,
-                                             color_mode=color_mode,
-                                             class_mode=class_mode,
-                                             batch_size=batch_size,
-                                             seed=seed,
-                                             shuffle=True)
-
-    for batch_x in iterator:
-        # if image is a mask convert to a multi-label array (binary matrix: 128x128x3)
-        if isMask == True:
-            batch_x = to_categorical(batch_x, num_classes)
-        yield batch_x
+# plt.figure(figsize=(12,6))
+# ax = plt.subplot(1, 3, 1)
+# ax.set_title('Background')
+# ax.imshow(np.max(binary_mask[0,:,:,:,:],axis=2), cmap=cm.Greys_r, interpolation='none')
+# ax.axis('off')
 
 
 #Random seed set into a fixed value to apply same augmentations to images and masks. Otherwise they would not be the same.
@@ -117,61 +90,29 @@ seed=1
 #Set the batch size
 batch_size=4
 
+numsamples = d_set_raw.shape[0]
+randsamples = np.random.choice(numsamples,numsamples)
 
-#Create the image training generator
-image_train_datagen = custom_image_generator(
-            ImageDataGenerator(rotation_range=10.,  #Augmentation 1: Rotate images randomly within +- 20 degrees
-                     width_shift_range=0.1, #Augmentation 2: Translate image left or right by 10%
-                     height_shift_range=0.1,  #Augmentation 3: Translate image up or down by 10%
-                     zoom_range=0.2, rescale=1./255.), #Augmentation 4: Zoom in/out 20%
-            directory='data/training/training_images/',  #Directory holding the raw images
-            seed=seed, #Use a specific random seed
-            target_size=(128,128), #Resize images if needed to fit into the Input layer of Unet
-            color_mode='grayscale', #Load them as one-channel (i.e. grayscale)
-            batch_size=batch_size, #Use batch size of 32
-        )
+data_x_train = d_set_raw[0:numsamples//10*9,...]
+data_y_train = binary_mask[::numsamples//10*9,...]
 
-#Create the mask training generator
-mask_train_datagen = custom_image_generator(
-            ImageDataGenerator(rotation_range=10.,
-                     width_shift_range=0.1,
-                     height_shift_range=0.1,
-                     zoom_range=0.2),
-            directory='data/training/training_masks/',
-            seed=seed,
-            target_size=(128,128),
-            color_mode='grayscale',
-            batch_size=batch_size,
-            isMask=True
-)
+data_x_validation = d_set_raw[::numsamples//10*9+1]
+data_y_validation = binary_mask
 
+X_train, X_test, y_train, y_test = train_test_split(d_set_raw, binary_mask, test_size=0.33, random_state=42)
+image_gen = IDG(featurewise_center=True,
+    featurewise_std_normalization=True,
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    horizontal_flip=True)
 
-#Create the image validation generator
-image_val_datagen = custom_image_generator(
-            ImageDataGenerator(rescale=1./255.),
-            directory='data/validation/validation_images/',
-            seed=seed,
-            target_size=(128,128),
-            color_mode='grayscale',
-            batch_size=batch_size,
-        )
-
-#Create the mask validation generator
-mask_val_datagen = custom_image_generator(
-            ImageDataGenerator(),
-            directory='data/validation/validation_masks/',
-            seed=seed,
-            target_size=(128,128),
-            color_mode='grayscale',
-            batch_size=batch_size,
-            isMask=True
-        )
-
-
+image_train_datagen = custom_generator.custom_image_generator(image_gen, X_train, y_train, seed, batch_size=16)
+image_validation_datagen = custom_generator.custom_image_generator(image_gen, X_test, y_test, seed, batch_size=16)
 
 # combine generators into one which yields image and images
-train_generator = zip(image_train_datagen, mask_train_datagen)
-val_generator = zip(image_val_datagen, mask_val_datagen)
+# train_generator = zip(image_train_datagen, mask_train_datagen)
+# val_generator = zip(image_val_datagen, mask_val_datagen)
 
 
 #Generate UNet with base number of filters and number of labels for segmntation
@@ -179,3 +120,33 @@ val_generator = zip(image_val_datagen, mask_val_datagen)
 model = generate_3D_unet(base_num_filters=16, num_classes=3, kernel_size=(5,5,5))
 
 print (model.summary())
+
+#Save UNet model on smallest validation loss
+model_checkpoint = ModelCheckpoint('./models/3d_unet_model.h5', monitor='val_loss', verbose=1, save_best_only=True, mode='min')
+reducer = ReduceLROnPlateau(monitor='loss', factor=.8, patience=5, verbose=1, mode='auto', epsilon=0.0001, cooldown=0, min_lr=0)
+#Save logs to file
+logger = CSVLogger('experiment.txt', separator=',', append=False)
+#Put the 2 callbacks together
+callbacks = [model_checkpoint,reducer, logger]
+
+# # Goal: make the more frequent labels weigh less
+# class_frequencies = np.array([1221018,  221993,  195389])
+# class_weights = class_frequencies.sum() / class_frequencies.astype(np.float32)
+# class_weights = class_weights ** 0.5
+# print (class_weights)
+
+train_steps_per_epoch = round(X_train.shape[0]/batch_size)
+val_steps_per_epoch = round(X_test.shape[0]/batch_size)
+
+def dice_error(y_true, y_pred):
+    return 1-dice_coef(y_true, y_pred)
+
+model.compile(optimizer=Adam(lr=1e-3), loss=[dice_error], metrics=[dice_coef], sample_weight_mode='temporal')
+model.fit_generator(image_train_datagen, steps_per_epoch=train_steps_per_epoch, epochs=150,
+                    validation_data=image_validation_datagen, validation_steps=val_steps_per_epoch,
+                    callbacks=callbacks, verbose=0)
+# model.fit_generator(train_generator, steps_per_epoch=train_steps_per_epoch, epochs=150,
+#                     validation_data=val_generator, validation_steps=val_steps_per_epoch,
+#                     class_weight=class_weights, callbacks=callbacks, verbose=0)
+
+
