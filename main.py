@@ -33,9 +33,9 @@ except ImportError: # will be 3.x series
     pass
 
 #UNCOMMENT BELOW TO DETERMINE GPU
-from keras import backend as K
-import tensorflow as tf
-import os
+# from keras import backend as K
+# import tensorflow as tf
+# import os
 #Use one GPU
 # if K.backend() == 'tensorflow':
 #     # Use only gpu #X (with tf.device(/gpu:X) does not work)
@@ -114,10 +114,15 @@ batch_size=4
 X_train, X_test, y_train, y_test = train_test_split(d_set_raw, binary_mask, test_size=0.33, random_state=42)
 image_gen = IDG(featurewise_center=True,
     featurewise_std_normalization=True,
-    rotation_range=20,
     width_shift_range=0.2,
     height_shift_range=0.2,
     horizontal_flip=True)
+# image_gen = IDG(featurewise_center=True,
+#     featurewise_std_normalization=True,
+#     rotation_range=20,
+#     width_shift_range=0.2,
+#     height_shift_range=0.2,
+#     horizontal_flip=True)
 
 image_train_datagen = custom_generator.custom_image_generator(image_gen, X_train, y_train, seed, batch_size=16)
 image_validation_datagen = custom_generator.custom_image_generator(image_gen, X_test, y_test, seed, batch_size=16)
