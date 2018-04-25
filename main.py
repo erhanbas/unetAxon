@@ -2,7 +2,9 @@ from __future__ import print_function
 # %matplotlib inline
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-import cv2
+import tensorflow
+
+# import cv2
 import numpy as np
 #Import our classes
 from nets.unet import generate_batch_norm_unet
@@ -19,7 +21,7 @@ from keras.optimizers import Adam
 from keras.callbacks import  ModelCheckpoint, CSVLogger, ReduceLROnPlateau
 from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
-
+import socket
 
 #Make sure we remove any randomness
 from numpy.random import seed
@@ -30,16 +32,16 @@ try:
 except ImportError: # will be 3.x series
     pass
 
-input_folder = '/Users/base/Dropbox (HHMI)/DATA/annotated_neuron'
-
 #UNCOMMENT BELOW TO DETERMINE GPU
-# from keras import backend as K
-# import tensorflow as tf
-# import os
-# #Use one GPU
+from keras import backend as K
+import tensorflow as tf
+import os
+#Use one GPU
 # if K.backend() == 'tensorflow':
 #     # Use only gpu #X (with tf.device(/gpu:X) does not work)
 #     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+#     # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+#
 #     # Automatically choose an existing and supported device if the specified one does not exist
 #     config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
 #     # To constrain the use of gpu memory, otherwise all memory is used
@@ -62,18 +64,30 @@ input_folder = '/Users/base/Dropbox (HHMI)/DATA/annotated_neuron'
 # print ('Image shape: ',image.shape)
 # print ('Mask shape: ',mask.shape)
 
+# input_folder = '/Users/base/Dropbox (HHMI)/DATA/annotated_neuron'
 # inputfile_path = 'r"'+os.path.join(input_folder,'2017-09-25_G-007_consensus-annotation.h5')+'"'
 
-input_f = '/Users/base/Dropbox (HHMI)/DATA/annotated_neuron/2017-09-25_G-007_consensus-training_raw.h5'
-input_f = input_f.replace('/','//')
-inputfile_handle = h5py.File(input_f,'r')
-d_set_raw = inputfile_handle['volume'][:,0,:,:,:]
+#set the path based on machine
+if socket.gethostname() == 'base-ws1':
+    datafold = '/data2/Dropbox (HHMI)/DATA'
+elif socket.gethostname() == 'vega':
+    #do nothing
+    1
+else:
+    # do nothing
+    datafold='/Users/base/Dropbox (HHMI)/DATA'
 
-input_f = '/Users/base/Dropbox (HHMI)/DATA/annotated_neuron/2017-09-25_G-007_consensus-training_dense_label.h5'
-input_f = input_f.replace('/','//')
-inputfile_handle = h5py.File(input_f,'r')
-d_set = inputfile_handle['volume']
-binary_mask = to_categorical(d_set, num_classes=3)
+
+
+input_raw_f = os.path.join(datafold,'annotated_neuron/2017-09-25_G-007_consensus-training_raw.h5')
+input_raw_f = input_raw_f.replace('/','//')
+input_raw_handle = h5py.File(input_raw_f,'r')
+d_set_raw = input_raw_handle['volume'][:,0,:,:,:]
+
+input_mask_f = os.path.join(datafold,'annotated_neuron/2017-09-25_G-007_consensus-training_dense_label.h5')
+input_mask_f = input_mask_f.replace('/','//')
+input_mask_handle = h5py.File(input_mask_f,'r')
+binary_mask = to_categorical(input_mask_handle['volume'], num_classes=3)
 
 print ('Binary shape: ',binary_mask.shape)
 
@@ -86,18 +100,16 @@ print ('Binary shape: ',binary_mask.shape)
 
 #Random seed set into a fixed value to apply same augmentations to images and masks. Otherwise they would not be the same.
 seed=1
-
 #Set the batch size
 batch_size=4
 
-numsamples = d_set_raw.shape[0]
-randsamples = np.random.choice(numsamples,numsamples)
-
-data_x_train = d_set_raw[0:numsamples//10*9,...]
-data_y_train = binary_mask[::numsamples//10*9,...]
-
-data_x_validation = d_set_raw[::numsamples//10*9+1]
-data_y_validation = binary_mask
+# numsamples = d_set_raw.shape[0]
+# randsamples = np.random.choice(numsamples,numsamples)
+# data_x_train = d_set_raw[0:numsamples//10*9,...]
+# data_y_train = binary_mask[::numsamples//10*9,...]
+#
+# data_x_validation = d_set_raw[::numsamples//10*9+1]
+# data_y_validation = binary_mask
 
 X_train, X_test, y_train, y_test = train_test_split(d_set_raw, binary_mask, test_size=0.33, random_state=42)
 image_gen = IDG(featurewise_center=True,
@@ -144,7 +156,7 @@ def dice_error(y_true, y_pred):
 model.compile(optimizer=Adam(lr=1e-3), loss=[dice_error], metrics=[dice_coef], sample_weight_mode='temporal')
 model.fit_generator(image_train_datagen, steps_per_epoch=train_steps_per_epoch, epochs=150,
                     validation_data=image_validation_datagen, validation_steps=val_steps_per_epoch,
-                    callbacks=callbacks, verbose=0)
+                    callbacks=callbacks, verbose=1)
 # model.fit_generator(train_generator, steps_per_epoch=train_steps_per_epoch, epochs=150,
 #                     validation_data=val_generator, validation_steps=val_steps_per_epoch,
 #                     class_weight=class_weights, callbacks=callbacks, verbose=0)
