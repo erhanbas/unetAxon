@@ -2,4 +2,4 @@
 *.h5
 *.png
 ./images/*
-./idea/*
+.idea/*
