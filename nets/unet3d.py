@@ -12,6 +12,10 @@ def generate_3D_unet(base_num_filters, num_classes, kernel_size=(3,3,3), image_w
         :param image_height:
         :return:
         """
+        layer_depth = 4
+
+
+
         inputs = Input((image_height,  image_width, image_depth, 1))
         conv1 = Conv3D(base_num_filters, kernel_size, activation='relu', padding='same')(inputs)
         conv1 = Conv3D(base_num_filters, kernel_size, activation='relu', padding='same')(conv1)

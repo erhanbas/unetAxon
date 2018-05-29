@@ -83,6 +83,7 @@ input_raw_f = os.path.join(datafold,'annotated_neuron/2017-09-25_G-007_consensus
 input_raw_f = input_raw_f.replace('/','//')
 input_raw_handle = h5py.File(input_raw_f,'r')
 d_set_raw = input_raw_handle['volume'][:,0,:,:,:]
+d_set_raw = np.reshape(d_set_raw,d_set_raw.shape+(1,))
 
 input_mask_f = os.path.join(datafold,'annotated_neuron/2017-09-25_G-007_consensus-training_dense_label.h5')
 input_mask_f = input_mask_f.replace('/','//')
@@ -117,12 +118,6 @@ image_gen = IDG(featurewise_center=True,
     width_shift_range=0.2,
     height_shift_range=0.2,
     horizontal_flip=True)
-# image_gen = IDG(featurewise_center=True,
-#     featurewise_std_normalization=True,
-#     rotation_range=20,
-#     width_shift_range=0.2,
-#     height_shift_range=0.2,
-#     horizontal_flip=True)
 
 image_train_datagen = custom_generator.custom_image_generator(image_gen, X_train, y_train, seed, batch_size=16)
 image_validation_datagen = custom_generator.custom_image_generator(image_gen, X_test, y_test, seed, batch_size=16)
