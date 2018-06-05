@@ -4,6 +4,7 @@ from keras import backend as K
 from keras.engine import Input, Model
 from keras.layers import Conv3D, MaxPooling3D, UpSampling3D, Activation, BatchNormalization, PReLU, Deconvolution3D
 from keras.optimizers import Adam
+
 from unet3d.metrics import dice_coefficient_loss, get_label_dice_coefficient_function, dice_coefficient
 # K.set_image_dim_ordering('tf')
 K.set_image_data_format("channels_last")
@@ -50,13 +51,14 @@ def generate_unet3D(input_shape, pool_size=(2, 2, 2), n_labels=1, initial_learni
 
     # add levels with up-convolution or up-sampling
     # right half of U wit concatenate from left
+    # for th: current_layer._keras_shape[1] to get the feature
     for layer_depth in range(depth-2, -1, -1):
-        up_convolution = get_up_convolution(pool_size=pool_size, deconvolution=deconvolution,
-                                            n_filters=current_layer._keras_shape[1])(current_layer)
-        concat = concatenate([up_convolution, levels[layer_depth][1]], axis=1)
-        current_layer = create_convolution_block(n_filters=levels[layer_depth][1]._keras_shape[1],
+        up_convolution = get_up_convolution(pool_size=pool_size, deconvolution=False,
+                                            n_filters=current_layer._keras_shape[-1])(current_layer)
+        concat = concatenate([up_convolution, levels[layer_depth][1]], axis=-1)
+        current_layer = create_convolution_block(n_filters=levels[layer_depth][1]._keras_shape[-1],
                                                  input_layer=concat, batch_normalization=batch_normalization)
-        current_layer = create_convolution_block(n_filters=levels[layer_depth][1]._keras_shape[1],
+        current_layer = create_convolution_block(n_filters=levels[layer_depth][1]._keras_shape[-1],
                                                  input_layer=current_layer,
                                                  batch_normalization=batch_normalization)
 
@@ -75,8 +77,6 @@ def generate_unet3D(input_shape, pool_size=(2, 2, 2), n_labels=1, initial_learni
             metrics = label_wise_dice_metrics
 
     model.compile(optimizer=Adam(lr=initial_learning_rate), loss=dice_coefficient_loss, metrics=metrics)
-    return model
-
     return model
 
 def create_convolution_block(input_layer, n_filters, batch_normalization=False, kernel=(3, 3, 3), activation=None,
