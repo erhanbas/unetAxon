@@ -10,38 +10,9 @@ config = initconfig()
 from pipe3D.model import unet3D
 from pipe3D.generator import get_generators
 
+from pipe3D.training import load_old_model, train_model
 
-from unet3d.data import write_data_to_file, open_data_file
-from unet3d.generator import get_training_and_validation_generators
-# from unet3d.model import unet_model_3d
-from unet3d.training import load_old_model, train_model
-
-
-#
-#
-# # %matplotlib inline
-# import matplotlib.pyplot as plt
-# import matplotlib.cm as cm
-# import tensorflow
-#
-# # import cv2
-# import numpy as np
-# #Import our classes
-# from nets.unet import generate_batch_norm_unet
-# from nets.unet3d import generate_unet, generate_3D_unet
-# from utils.image import ImageDataGenerator
-# from utils import custom_generator
-# from utils.multi_gpu import make_parallel
-# from utils.dice import dice_coef
-
-# from keras.preprocessing.image import ImageDataGenerator as IDG
-# #Import specific keras classes
-# from keras.optimizers import Adam
-# from keras.callbacks import  ModelCheckpoint, CSVLogger, ReduceLROnPlateau
-# from keras.utils import to_categorical
 # from sklearn.model_selection import train_test_split
-#
-#
 # #Make sure we remove any randomness
 # from numpy.random import seed
 # seed(1)
@@ -94,7 +65,7 @@ def main():
     overwrite = True
     # training data handle
     input_raw_handle = fetch_train_data(config['data_file'])
-    input_mask_handle = fetch_train_data(config['label_file'])
+    input_label_handle = fetch_train_data(config['label_file'])
 
     # load model
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -106,25 +77,33 @@ def main():
     print(model.summary())
 
     # generators for training and validation with augmentation
+
     train_generator, validation_generator, n_train_steps, n_validation_steps = get_generators(
-        input_raw_handle,
-        input_mask_handle,
+        input_raw_handle, input_label_handle,
         batch_size=config["batch_size"],
-        data_split=config["validation_split"],
+        image_shape=config["image_shape"],
+        split_file=config["split_file"],
+        train_split_ratio=config["train_split_ratio"],
         overwrite=overwrite,
-        validation_keys_file=config["validation_file"],
-        training_keys_file=config["training_file"],
-        n_labels=config["n_labels"],
-        labels=config["labels"],
-        patch_shape=config["patch_shape"],
-        validation_batch_size=config["validation_batch_size"],
-        validation_patch_overlap=config["validation_patch_overlap"],
-        training_patch_start_offset=config["training_patch_start_offset"],
-        permute=config["permute"],
-        augment=config["augment"],
-        skip_blank=config["skip_blank"],
-        augment_flip=config["flip"],
-        augment_distortion_factor=config["distort"])
+        labels = None,
+        augment = False,
+        augment_flip = True,
+        augment_distortion_factor = 0.25,
+        permute=False)
+
+    # run training
+    train_model(model=model,
+                model_file=config["model_file"],
+                training_generator=train_generator,
+                validation_generator=validation_generator,
+                steps_per_epoch=n_train_steps,
+                validation_steps=n_validation_steps,
+                initial_learning_rate=config["initial_learning_rate"],
+                learning_rate_drop=config["learning_rate_drop"],
+                learning_rate_patience=config["patience"],
+                early_stopping_patience=config["early_stop"],
+                n_epochs=config["n_epochs"])
+
 
 
     # image_gen = IDG(featurewise_center=True,

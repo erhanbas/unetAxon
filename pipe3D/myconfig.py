@@ -26,7 +26,7 @@ def initconfig():
     config["early_stop"] = 50  # training will be stopped after this many epochs without the validation loss improving
     config["initial_learning_rate"] = 0.00001
     config["learning_rate_drop"] = 0.5  # factor by which the learning rate will be reduced
-    config["test_size"] = 0.33  # portion of the data that will be used for testing
+    config["train_split_ratio"] = 0.66  # portion of the data that will be used for testing
     config["flip"] = False  # augments the data by randomly flipping an axis during
     config["permute"] = True  # data shape must be a cube. Augments the data by permuting in various directions
     config["distort"] = None  # switch to None if you want no distortion
