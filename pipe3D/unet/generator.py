@@ -1,5 +1,5 @@
 import numpy as np
-from pipe3D.utils import io_utils
+from utils import io_utils
 import nibabel as nib
 from nilearn.image import new_img_like, resample_to_img
 
@@ -8,6 +8,7 @@ import copy
 import itertools
 
 from .augment import augment_data, random_permutation_x_y
+import tensorflow as tf
 
 """
 Based on https://github.com/ellisdg/3DUnetCNN, 3d unet implementation trained on Bratts data. 
@@ -41,24 +42,26 @@ def split_data(overwrite,split_file,num_sample,train_split_ratio,random_seed=Non
         io_utils.pickle_dump(train_test_list, split_file)
     return train_list, test_list
 
+def crop_image(input_image,start_vox,end_vox):
+    return input_image[:, start_vox[0]:end_vox[0], start_vox[1]:end_vox[1], start_vox[2]:end_vox[2],:]
+
+
 def fetch_data(input_raw_handle,input_label_handle,start,end,image_shape,augment=False):
     batch_x = input_raw_handle[start:end]
     batch_y = input_label_handle[start:end]
+    batch_x = np.transpose(batch_x, (0, 2, 3, 4, 1)) # #/z/y/x/ch
+    batch_y = batch_y[:,:,:,:,None]
+
     raw_shape = batch_x.shape
     image_shape = np.asarray(image_shape)
-    center_vox = np.round((np.asarray(raw_shape[2:])+1)/2)
+    center_vox = np.round((np.asarray(raw_shape[1:-1])+1)/2)
     if np.any(image_shape != raw_shape[2:]):
         # crop image
         start_vox = np.asarray(center_vox - np.asarray(image_shape)/2,np.int)
         end_vox = np.asarray(start_vox + image_shape,np.int)
-        batch_x = batch_x[:,:,
-                   start_vox[0]:end_vox[0],
-                   start_vox[1]:end_vox[1],
-                   start_vox[2]:end_vox[2]]
-        batch_y = batch_y[:,
-                   start_vox[0]:end_vox[0],
-                   start_vox[1]:end_vox[1],
-                   start_vox[2]:end_vox[2]]
+        batch_x = crop_image(batch_x,start_vox,end_vox)
+        batch_y = crop_image(batch_y,start_vox,end_vox)
+    # permute data to batch/z/y/x/ch
 
     return batch_x, batch_y
 
@@ -67,36 +70,39 @@ def to_categorical(ylabels,labels=None):
     if not labels:
         labels = np.setdiff1d(np.unique(ylabels),0)
     n_labels = len(labels)
-    inshape[1] = n_labels
+    inshape[-1] = n_labels
     ylabels_out = np.zeros(inshape)
     if n_labels == 1:
         ylabels_out[ylabels>0] = 1
     elif n_labels > 1:
         for i_lab in range(n_labels):
-            ylabels_out[:,i_lab][ylabels==labels[i_lab]] = 1
+            ylabels_out[:,:,:,:,i_lab][ylabels[:,:,:,:,0]==labels[i_lab]] = 1
 
     return ylabels_out
 
 def custom_generator(input_raw_handle,input_label_handle, index_list, image_shape, batch_size, labels=None, augment=False):
     """ creates a generator to iterate on training data in batches"""
-    len_list = len(index_list)
-    batch_size = np.minimum(len_list,batch_size)
-    start_end = list(range(0, len_list - 1, batch_size)) + [len_list]
-    affine = np.eye(4, 4)
-    for i_list in range(len(start_end)-1):
-        # print(i_list,start_end[i_list],start_end[i_list+1])
-        start = start_end[i_list]
-        end = start_end[i_list+1]
-        batch_x, batch_y = fetch_data(input_raw_handle,input_label_handle, start,end,image_shape,augment)
-        batch_y = batch_y[:,np.newaxis] # extend in channel direction
-        if augment:
-            """Augment data with flip/rotation/scale/etc..."""
-            scale, flip, rotation = None
-            batch_x, batch_y = augment_data(batch_x,batch_y,scale,flip,rotation)
+    while True:
+        len_list = len(index_list)
+        batch_size = np.minimum(len_list,batch_size)
+        start_end = list(range(0, len_list - 1, batch_size))
+        start_end.reverse()
+        affine = np.eye(4, 4)
+        # in keras generators need to be infinitely iterable
+        while len(start_end):
+            start = start_end.pop()
+            end = np.minimum(start + batch_size,len_list)
 
-        # convert to categorical variables, extend 1st dim for tf, last dim for th
-        batch_y = to_categorical(batch_y)
-        yield batch_x, batch_y
+            batch_x, batch_y = fetch_data(input_raw_handle,input_label_handle, start,end,image_shape,augment)
+            if augment:
+                """Augment data with flip/rotation/scale/etc..."""
+                scale, flip, rotation = None
+                batch_x, batch_y = augment_data(batch_x,batch_y,scale,flip,rotation)
+
+            # convert to categorical variables, extend 1st dim for tf, last dim for th
+            batch_y = tf.keras.utils.to_categorical(batch_y,num_classes=2)
+
+            yield batch_x, batch_y
 
 def get_generators(input_raw_handle, input_label_handle, batch_size, image_shape, split_file,
                    train_split_ratio=0.66, overwrite=False, labels=None, augment=False,

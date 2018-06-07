@@ -1,16 +1,14 @@
 from __future__ import print_function
 import glob
 import socket
-import os
 import h5py
+import os
 
-from pipe3D.myconfig import initconfig
+from myconfig import initconfig
 config = initconfig()
-
-from pipe3D.model import unet3D
-from pipe3D.generator import get_generators
-
-from pipe3D.training import load_old_model, train_model
+from unet.model import unet3D
+from unet.generator import get_generators
+from unet.training import load_old_model, train_model
 
 # from sklearn.model_selection import train_test_split
 # #Make sure we remove any randomness
@@ -25,19 +23,18 @@ from pipe3D.training import load_old_model, train_model
 #UNCOMMENT BELOW TO DETERMINE GPU
 # from keras import backend as K
 # import tensorflow as tf
-# import os
 #Use one GPU
 # if K.backend() == 'tensorflow':
-#     # Use only gpu #X (with tf.device(/gpu:X) does not work)
-#     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-#     # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-#
-#     # Automatically choose an existing and supported device if the specified one does not exist
-#     config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
-#     # To constrain the use of gpu memory, otherwise all memory is used
-#     config.gpu_options.allow_growth = True
-#     sess = tf.Session(config=config)
-#     K.set_session(sess)
+    # Use only gpu #X (with tf.device(/gpu:X) does not work)
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+    # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+    # # Automatically choose an existing and supported device if the specified one does not exist
+    # config_GPU = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    # # To constrain the use of gpu memory, otherwise all memory is used
+    # config_GPU.gpu_options.allow_growth = True
+    # sess = tf.Session(config=config_GPU)
+    # K.set_session(sess)
 ###############################################################################################
 
 def setup_paths():
@@ -45,9 +42,11 @@ def setup_paths():
     # set the path based on machine
     if socket.gethostname() == 'base-ws1':
         datafold = '/data2/Dropbox (HHMI)/DATA/annotated_neuron'
+        tf.device('/gpu:1')
+
     elif socket.gethostname() == 'vega':
         # do nothing
-        1
+        datafold = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus'
     else:
         # do nothing
         datafold = '/Users/base/Dropbox (HHMI)/DATA/annotated_neuron'
@@ -91,7 +90,11 @@ def main():
         augment_distortion_factor = 0.25,
         permute=False)
 
-    # run training
+    fh = open('report2.txt', 'w')
+    model.summary(print_fn=lambda x: fh.write(x + '\n'))
+    fh.close()
+
+        # run training
     train_model(model=model,
                 model_file=config["model_file"],
                 training_generator=train_generator,

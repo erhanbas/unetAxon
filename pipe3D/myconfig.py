@@ -10,11 +10,11 @@ def initconfig():
     config["n_labels"] = len(config["labels"])
     # config["all_modalities"] = ["t1", "t1Gd", "flair", "t2"]
     # config["training_modalities"] = config["all_modalities"]  # change this if you want to only use some of the modalities
-    # config["nb_channels"] = len(config["training_modalities"])
+    config["nb_channels"] = 2
     if "patch_shape" in config and config["patch_shape"] is not None:
         config["input_shape"] = tuple([config["nb_channels"]] + list(config["patch_shape"]))
     else:
-        config["input_shape"] = tuple(config["image_shape"]+(1,))
+        config["input_shape"] = tuple(list(config["image_shape"])+[config["nb_channels"]])
 
     # config["truth_channel"] = config["nb_channels"]
     config["deconvolution"] = True  # if False, will use upsampling instead of deconvolution
@@ -26,7 +26,7 @@ def initconfig():
     config["early_stop"] = 50  # training will be stopped after this many epochs without the validation loss improving
     config["initial_learning_rate"] = 0.00001
     config["learning_rate_drop"] = 0.5  # factor by which the learning rate will be reduced
-    config["train_split_ratio"] = 0.66  # portion of the data that will be used for testing
+    config["train_split_ratio"] = 0.8  # portion of the data that will be used for testing
     config["flip"] = False  # augments the data by randomly flipping an axis during
     config["permute"] = True  # data shape must be a cube. Augments the data by permuting in various directions
     config["distort"] = None  # switch to None if you want no distortion
