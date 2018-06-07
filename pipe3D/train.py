@@ -4,7 +4,7 @@ import socket
 import h5py
 import os
 
-from myconfig import initconfig
+from __myconfig import initconfig
 config = initconfig()
 from unet.model import unet3D
 from unet.generator import get_generators
