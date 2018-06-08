@@ -1,7 +1,5 @@
 from __future__ import print_function
 import glob
-import socket
-import h5py
 import os
 
 from __myconfig import initconfig
@@ -9,6 +7,7 @@ config = initconfig()
 from unet.model import unet3D
 from unet.generator import get_generators
 from unet.training import load_old_model, train_model
+from utils.io_utils import fetch_train_data
 
 # from sklearn.model_selection import train_test_split
 # #Make sure we remove any randomness
@@ -37,28 +36,8 @@ from unet.training import load_old_model, train_model
     # K.set_session(sess)
 ###############################################################################################
 
-def setup_paths():
-    # setup paths/environments
-    # set the path based on machine
-    if socket.gethostname() == 'base-ws1':
-        datafold = '/data2/Dropbox (HHMI)/DATA/annotated_neuron'
-        tf.device('/gpu:1')
 
-    elif socket.gethostname() == 'vega':
-        # do nothing
-        datafold = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus'
-    else:
-        # do nothing
-        datafold = '/Users/base/Dropbox (HHMI)/DATA/annotated_neuron'
-    return datafold
-def fetch_train_data(input_h5_file='2017-09-25_G-007_consensus-training_raw.h5:volume'):
-    # load data
-    datafold = setup_paths()
-    # check for dataset
-    file,dataset = input_h5_file.split(':')
-    input_raw_f = os.path.join(datafold, file).replace('/', '//')
-    input_raw_handle = h5py.File(input_raw_f, 'r')[dataset]
-    return input_raw_handle
+
 
 def main():
     overwrite = True

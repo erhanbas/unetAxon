@@ -35,7 +35,7 @@ def get_random_nd_index(index_max):
     return tuple([np.random.choice(index_max[index] + 1) for index in range(len(index_max))])
 
 
-def get_patch_from_3d_data(data, patch_shape, patch_index):
+def get_patch_from_3d_data(data_, patch_shape, patch_index,tf_flag=True):
     """
     Returns a patch from a numpy array.
     :param data: numpy array from which to get the patch.
@@ -43,16 +43,19 @@ def get_patch_from_3d_data(data, patch_shape, patch_index):
     :param patch_index: corner index of the patch.
     :return: numpy array take from the data with the patch shape specified.
     """
-    patch_index = np.asarray(patch_index, dtype=np.int16)
+    if tf_flag:
+        data_shape = data_.shape[1:4]
+    else:
+        data_shape = data_.shape[-3:]
+    patch_index_ = np.asarray(patch_index, dtype=np.int16)
     patch_shape = np.asarray(patch_shape)
-    image_shape = data.shape[-3:]
-    if np.any(patch_index < 0) or np.any((patch_index + patch_shape) > image_shape):
-        data, patch_index = fix_out_of_bound_patch_attempt(data, patch_shape, patch_index)
-    return data[..., patch_index[0]:patch_index[0]+patch_shape[0], patch_index[1]:patch_index[1]+patch_shape[1],
-                patch_index[2]:patch_index[2]+patch_shape[2]]
+    if np.any(patch_index_ < 0) or np.any((patch_index_ + patch_shape) > data_shape):
+        data_, patch_index_ = fix_out_of_bound_patch_attempt(data_, patch_shape, patch_index_)
+    return data_[..., patch_index_[0]:patch_index_[0]+patch_shape[0], patch_index_[1]:patch_index_[1]+patch_shape[1],
+           patch_index_[2]:patch_index_[2]+patch_shape[2]]
 
 
-def fix_out_of_bound_patch_attempt(data, patch_shape, patch_index, ndim=3):
+def fix_out_of_bound_patch_attempt(data, patch_shape, patch_index, tf_flag=True):
     """
     Pads the data and alters the patch index so that a patch will be correct.
     :param data:
@@ -60,9 +63,12 @@ def fix_out_of_bound_patch_attempt(data, patch_shape, patch_index, ndim=3):
     :param patch_index:
     :return: padded data, fixed patch index
     """
-    image_shape = data.shape[-ndim:]
+    if tf_flag:
+        data_shape = data.shape[1:4]
+    else:
+        data_shape = data.shape[-3:]
     pad_before = np.abs((patch_index < 0) * patch_index)
-    pad_after = np.abs(((patch_index + patch_shape) > image_shape) * ((patch_index + patch_shape) - image_shape))
+    pad_after = np.abs(((patch_index + patch_shape) > data_shape) * ((patch_index + patch_shape) - data_shape))
     pad_args = np.stack([pad_before, pad_after], axis=1)
     if pad_args.shape[0] < len(data.shape):
         pad_args = [[0, 0]] * (len(data.shape) - pad_args.shape[0]) + pad_args.tolist()

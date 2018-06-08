@@ -50,6 +50,7 @@ def fetch_data(input_raw_handle,input_label_handle,start,end,image_shape,augment
     batch_x = input_raw_handle[start:end]
     batch_y = input_label_handle[start:end]
     batch_x = np.transpose(batch_x, (0, 2, 3, 4, 1)) # #/z/y/x/ch
+    # TODO: fix permutation for label volume
     batch_y = batch_y[:,:,:,:,None]
 
     raw_shape = batch_x.shape

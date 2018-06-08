@@ -2,15 +2,35 @@ import os
 
 import nibabel as nib
 import numpy as np
-import tables
-
+# import tables
+import h5py
 from .training import load_old_model
-from utils.io_utils import pickle_load, pickle_dump
+from utils.io_utils import pickle_load, pickle_dump, preload_data
 from utils.patches import reconstruct_from_patches, get_patch_from_3d_data, compute_patch_indices
 from .augment import permute_data, generate_permutation_keys, reverse_permute_data
 
+def fix_out_of_bound_patch_attempt(data, patch_shape, patch_index, tf_flag=True):
+    """
+    Pads the data and alters the patch index so that a patch will be correct.
+    :param data:
+    :param patch_shape:
+    :param patch_index:
+    :return: padded data, fixed patch index
+    """
+    if tf_flag:
+        data_shape = data.shape[1:4]
+    else:
+        data_shape = data.shape[-3:]
+    pad_before = np.abs((patch_index < 0) * patch_index)
+    pad_after = np.abs(((patch_index + patch_shape) > data_shape) * ((patch_index + patch_shape) - data_shape))
+    pad_args = np.stack([pad_before, pad_after], axis=1)
+    if pad_args.shape[0] < len(data.shape):
+        pad_args = [[0, 0]] * (len(data.shape) - pad_args.shape[0]) + pad_args.tolist()
+    data = np.pad(data, pad_args, mode="edge")
+    patch_index += pad_before
+    return data, patch_index
 
-def patch_wise_prediction(model, data, overlap=0, batch_size=1, permute=False):
+def patch_wise_prediction(model, data, overlap=0, batch_size=1, permute=False,tf_flag=True):
     """
     :param batch_size:
     :param model:
@@ -18,14 +38,21 @@ def patch_wise_prediction(model, data, overlap=0, batch_size=1, permute=False):
     :param overlap:
     :return:
     """
-    patch_shape = tuple([int(dim) for dim in model.input.shape[-3:]])
+    if tf_flag:
+        patch_shape = tuple([int(dim) for dim in model.input.shape[1:4]])
+        data_shape = data.shape[1:4]
+    else:
+        patch_shape = tuple([int(dim) for dim in model.input.shape[-3:]])
+        data_shape = data.shape[-3:]
+
     predictions = list()
-    indices = compute_patch_indices(data.shape[-3:], patch_size=patch_shape, overlap=overlap)
+    grid_subs = compute_patch_indices(data_shape, patch_size=patch_shape, overlap=overlap)
     batch = list()
     i = 0
-    while i < len(indices):
+    while i < len(grid_subs):
         while len(batch) < batch_size:
-            patch = get_patch_from_3d_data(data[0], patch_shape=patch_shape, patch_index=indices[i])
+            patch = get_patch_from_3d_data(data[0], patch_shape=patch_shape, patch_index=grid_subs[i])
+            patch.shape
             batch.append(patch)
             i += 1
         prediction = predict(model, np.asarray(batch), permute=permute)
@@ -33,7 +60,7 @@ def patch_wise_prediction(model, data, overlap=0, batch_size=1, permute=False):
         for predicted_patch in prediction:
             predictions.append(predicted_patch)
     output_shape = [int(model.output.shape[1])] + list(data.shape[-3:])
-    return reconstruct_from_patches(predictions, patch_indices=indices, data_shape=output_shape)
+    return reconstruct_from_patches(predictions, patch_indices=grid_subs, data_shape=output_shape)
 
 
 def get_prediction_labels(prediction, threshold=0.5, labels=None):
@@ -99,7 +126,7 @@ def multi_class_prediction(prediction, affine):
     return prediction_images
 
 
-def run_validation_case(data_index, output_dir, model, data_file,
+def run_validation_case(data_index, output_dir, model, raw_file, label_file=None,
                         output_label_map=False, threshold=0.5, labels=None, overlap=16, permute=False):
     """
     Runs a test case and writes predicted images to file.
@@ -114,20 +141,22 @@ def run_validation_case(data_index, output_dir, model, data_file,
     :param data_file:
     :param model:
     """
+    training_modalities = None
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    affine = data_file.root.affine[data_index]
-    test_data = np.asarray([data_file.root.data[data_index]])
-    for i, modality in enumerate(training_modalities):
-        image = nib.Nifti1Image(test_data[0, i], affine)
-        image.to_filename(os.path.join(output_dir, "data_{0}.nii.gz".format(modality)))
+    # affine = data_file.root.affine[data_index]
+    affine = np.eye(4, 4)
+    test_data = np.asarray([raw_file[data_index]])
+    test_data = np.transpose(test_data, (0, 2, 3, 4, 1))
+    image = test_data[0]
 
-    test_truth = nib.Nifti1Image(data_file.root.truth[data_index][0], affine)
-    test_truth.to_filename(os.path.join(output_dir, "truth.nii.gz"))
+    if label_file:
+        label_data = np.asarray([label_file[data_index]])
 
-    patch_shape = tuple([int(dim) for dim in model.input.shape[-3:]])
-    if patch_shape == test_data.shape[-3:]:
+    #model.input.shape[-3:] for th
+    patch_shape = tuple([int(dim) for dim in model.input.shape[1:4]])
+    if patch_shape == test_data.shape[1:4]:
         prediction = predict(model, test_data, permute=permute)
     else:
         prediction = patch_wise_prediction(model=model, data=test_data, overlap=overlap, permute=permute)[np.newaxis]
@@ -140,20 +169,18 @@ def run_validation_case(data_index, output_dir, model, data_file,
         prediction_image.to_filename(os.path.join(output_dir, "prediction.nii.gz"))
 
 
-def run_validation_cases(split_keys_file, model_file, training_modalities, labels, hdf5_file,
+def run_validation_cases(split_keys_file, model_file, labels, raw_file, label_file,
                          output_label_map=False, output_dir=".", threshold=0.5, overlap=16, permute=False):
     split_indices = pickle_load(split_keys_file)
     validation_indices = split_indices['test']
     model = load_old_model(model_file)
-    data_file = tables.open_file(hdf5_file, "r")
+    data_file = preload_data(raw_file)
     for index in validation_indices:
-        if 'subject_ids' in data_file.root:
-            case_directory = os.path.join(output_dir, data_file.root.subject_ids[index].decode('utf-8'))
-        else:
-            case_directory = os.path.join(output_dir, "validation_case_{}".format(index))
-        run_validation_case(data_index=index, output_dir=case_directory, model=model, data_file=data_file,
-                            training_modalities=training_modalities, output_label_map=output_label_map, labels=labels,
+        case_directory = os.path.join(output_dir, "validation_case_{}".format(index))
+        run_validation_case(data_index=index, output_dir=case_directory, model=model, raw_file=preload_data(raw_file),
+                            label_file=preload_data(label_file), output_label_map=output_label_map, labels=labels,
                             threshold=threshold, overlap=overlap, permute=permute)
+
     data_file.close()
 
 
