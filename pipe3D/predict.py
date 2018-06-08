@@ -22,3 +22,16 @@ if __name__ == "__main__":
 # from keras.utils import plot_model
 # plot_model(model, to_file='model.png')
 
+import matplotlib.pyplot as plt
+im = np.max(data[0],axis=2)
+plt.imshow(im[:,:,0])
+im = np.max(prediction[0,:,:,:],axis=2)
+plt.imshow(im[:,:,0],clim=(0.0, 1))
+
+im = np.max(predictions[21],axis=2)
+plt.imshow(im[:,:,0],clim=(0.0, 1))
+
+import SimpleITK as sitk
+
+i1 = sitk.GetImageFromArray(np.swapaxes(predictions[21][:,:,:,1], 2, 0))
+sitk.Show(i1)

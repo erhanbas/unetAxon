@@ -51,8 +51,8 @@ def get_patch_from_3d_data(data_, patch_shape, patch_index,tf_flag=True):
     patch_shape = np.asarray(patch_shape)
     if np.any(patch_index_ < 0) or np.any((patch_index_ + patch_shape) > data_shape):
         data_, patch_index_ = fix_out_of_bound_patch_attempt(data_, patch_shape, patch_index_)
-    return data_[..., patch_index_[0]:patch_index_[0]+patch_shape[0], patch_index_[1]:patch_index_[1]+patch_shape[1],
-           patch_index_[2]:patch_index_[2]+patch_shape[2]]
+    return data_[patch_index_[0]:patch_index_[0]+patch_shape[0], patch_index_[1]:patch_index_[1]+patch_shape[1],
+           patch_index_[2]:patch_index_[2]+patch_shape[2],...]
 
 
 def fix_out_of_bound_patch_attempt(data, patch_shape, patch_index, tf_flag=True):
@@ -64,14 +64,14 @@ def fix_out_of_bound_patch_attempt(data, patch_shape, patch_index, tf_flag=True)
     :return: padded data, fixed patch index
     """
     if tf_flag:
-        data_shape = data.shape[1:4]
+        data_shape = data.shape[:3]
     else:
         data_shape = data.shape[-3:]
     pad_before = np.abs((patch_index < 0) * patch_index)
     pad_after = np.abs(((patch_index + patch_shape) > data_shape) * ((patch_index + patch_shape) - data_shape))
     pad_args = np.stack([pad_before, pad_after], axis=1)
     if pad_args.shape[0] < len(data.shape):
-        pad_args = [[0, 0]] * (len(data.shape) - pad_args.shape[0]) + pad_args.tolist()
+        pad_args = pad_args.tolist() + [[0, 0]] * (len(data.shape) - pad_args.shape[0])
     data = np.pad(data, pad_args, mode="edge")
     patch_index += pad_before
     return data, patch_index

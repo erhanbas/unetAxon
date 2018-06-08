@@ -59,7 +59,8 @@ def patch_wise_prediction(model, data, overlap=0, batch_size=1, permute=False,tf
         batch = list()
         for predicted_patch in prediction:
             predictions.append(predicted_patch)
-    output_shape = [int(model.output.shape[1])] + list(data.shape[-3:])
+    output_shape = list(data.shape[1:4]) + [int(model.output.shape[-1])]
+    # TODO: fix reconstruct_from_patches
     return reconstruct_from_patches(predictions, patch_indices=grid_subs, data_shape=output_shape)
 
 
