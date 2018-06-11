@@ -8,6 +8,7 @@ from .training import load_old_model
 from utils.io_utils import pickle_load, pickle_dump, preload_data
 from utils.patches import reconstruct_from_patches, get_patch_from_3d_data, compute_patch_indices
 from .augment import permute_data, generate_permutation_keys, reverse_permute_data
+import graphviz
 
 def fix_out_of_bound_patch_attempt(data, patch_shape, patch_index, tf_flag=True):
     """
@@ -30,11 +31,11 @@ def fix_out_of_bound_patch_attempt(data, patch_shape, patch_index, tf_flag=True)
     patch_index += pad_before
     return data, patch_index
 
-def patch_wise_prediction(model, data, overlap=0, batch_size=1, permute=False,tf_flag=True):
+def patch_wise_prediction(model, data, overlap=0, batch_size=1, permute=False,label_data=None, tf_flag=True):
     """
     :param batch_size:
     :param model:
-    :param data:
+    :param data[patch/z/y/x/ch]:
     :param overlap:
     :return:
     """
@@ -56,6 +57,27 @@ def patch_wise_prediction(model, data, overlap=0, batch_size=1, permute=False,tf
             batch.append(patch)
             i += 1
         prediction = predict(model, np.asarray(batch), permute=permute)
+
+        import tensorflow as tf
+        lab = get_patch_from_3d_data(label_data[227][...,None], patch_shape=patch_shape, patch_index=grid_subs[i])
+        y_true = tf.keras.utils.to_categorical(lab, num_classes=2)
+        y_pred = prediction
+
+        y_true_f = K.flatten(K.cast_to_floatx(y_true))
+        y_pred_f = K.flatten(K.cast_to_floatx(y_pred))
+        intersection = K.sum(y_true_f * y_pred_f)
+        (2. * intersection + 1) / (K.sum(y_true_f) + K.sum(y_pred_f) + 1)
+
+        from unet.metrics import dice_coefficient
+        er=dice_coefficient(K.cast_to_floatx(batch_y[None,...]),K.cast_to_floatx(prediction))
+        K.eval(er)
+
+
+        batch_y.shape
+
+        model.evaluate(patch[None,...],batch_y[None,...])
+
+        get_prediction_labels
         batch = list()
         for predicted_patch in prediction:
             predictions.append(predicted_patch)
@@ -127,7 +149,7 @@ def multi_class_prediction(prediction, affine):
     return prediction_images
 
 
-def run_validation_case(data_index, output_dir, model, raw_file, label_file=None,
+def run_validation_case(data_index, output_dir, model, raw_data, label_file=None,
                         output_label_map=False, threshold=0.5, labels=None, overlap=16, permute=False):
     """
     Runs a test case and writes predicted images to file.
@@ -148,19 +170,21 @@ def run_validation_case(data_index, output_dir, model, raw_file, label_file=None
 
     # affine = data_file.root.affine[data_index]
     affine = np.eye(4, 4)
-    test_data = np.asarray([raw_file[data_index]])
+    test_data = np.asarray([raw_data[data_index]])
     test_data = np.transpose(test_data, (0, 2, 3, 4, 1))
     image = test_data[0]
 
     if label_file:
-        label_data = np.asarray([label_file[data_index]])
+        label_data = preload_data(label_file)
+    else:
+        label_data = None
 
     #model.input.shape[-3:] for th
     patch_shape = tuple([int(dim) for dim in model.input.shape[1:4]])
     if patch_shape == test_data.shape[1:4]:
-        prediction = predict(model, test_data, permute=permute)
+        prediction = predict(model, test_data, permute=permute,label_data=label_data)
     else:
-        prediction = patch_wise_prediction(model=model, data=test_data, overlap=overlap, permute=permute)[np.newaxis]
+        prediction = patch_wise_prediction(model=model, data=test_data, overlap=overlap, permute=permute,label_data=label_data)[np.newaxis]
     prediction_image = prediction_to_image(prediction, affine, label_map=output_label_map, threshold=threshold,
                                            labels=labels)
     if isinstance(prediction_image, list):
@@ -168,6 +192,8 @@ def run_validation_case(data_index, output_dir, model, raw_file, label_file=None
             image.to_filename(os.path.join(output_dir, "prediction_{0}.nii.gz".format(i + 1)))
     else:
         prediction_image.to_filename(os.path.join(output_dir, "prediction.nii.gz"))
+    if label_file:
+        label_data.close()
 
 
 def run_validation_cases(split_keys_file, model_file, labels, raw_file, label_file,
@@ -175,14 +201,14 @@ def run_validation_cases(split_keys_file, model_file, labels, raw_file, label_fi
     split_indices = pickle_load(split_keys_file)
     validation_indices = split_indices['test']
     model = load_old_model(model_file)
-    data_file = preload_data(raw_file)
+    raw_data = preload_data(raw_file)
     for index in validation_indices:
         case_directory = os.path.join(output_dir, "validation_case_{}".format(index))
-        run_validation_case(data_index=index, output_dir=case_directory, model=model, raw_file=preload_data(raw_file),
-                            label_file=preload_data(label_file), output_label_map=output_label_map, labels=labels,
+        run_validation_case(data_index=index, output_dir=case_directory, model=model, raw_data=raw_data,
+                            label_file=label_file, output_label_map=output_label_map, labels=labels,
                             threshold=threshold, overlap=overlap, permute=permute)
 
-    data_file.close()
+    raw_data.close()
 
 
 def predict(model, data, permute=False):

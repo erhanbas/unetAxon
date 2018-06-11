@@ -1,5 +1,8 @@
 import os
 import glob
+import time
+
+today = time.strftime('%Y%m%d-%H%M%S')
 
 def initconfig():
     config = dict()
@@ -37,7 +40,7 @@ def initconfig():
 
     config["data_file"] = "2017-09-25_G-007_consensus-training_raw.h5:volume"
     config["label_file"] = "2017-09-25_G-007_consensus-training_dense_label.h5:volume"
-    config["model_file"] = os.path.abspath("axon_segmentation_model.h5")
+    config["model_file"] = os.path.abspath('axon_segmentation_model_{}.h5'.format(today))
     config["split_file"] = os.path.abspath("split_ids.pkl")
     # config["training_file"] = os.path.abspath("training_ids.pkl")
     # config["validation_file"] = os.path.abspath("validation_ids.pkl")

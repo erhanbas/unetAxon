@@ -7,6 +7,7 @@ from keras.models import load_model
 
 from unet.metrics import (dice_coefficient, dice_coefficient_loss, dice_coef, dice_coef_loss,
                             weighted_dice_coefficient_loss, weighted_dice_coefficient)
+import numpy as np
 import tensorflow as tf
 
 K.set_image_dim_ordering('tf')
@@ -73,15 +74,31 @@ def train_model(model, model_file, training_generator, validation_generator, ste
     :param n_epochs: Total number of epochs to train the model.
     :return:
     """
-    model.fit_generator(generator=training_generator,
-                        steps_per_epoch=steps_per_epoch,
-                        epochs=n_epochs,
-                        validation_data=validation_generator,
-                        validation_steps=validation_steps,
-                        verbose=1,
-                        callbacks=get_callbacks(model_file,
-                                                initial_learning_rate=initial_learning_rate,
-                                                learning_rate_drop=learning_rate_drop,
-                                                learning_rate_epochs=learning_rate_epochs,
-                                                learning_rate_patience=learning_rate_patience,
-                                                early_stopping_patience=early_stopping_patience))
+    if np.any(class_weights):
+        model.fit_generator(generator=training_generator,
+                            steps_per_epoch=steps_per_epoch,
+                            epochs=n_epochs,
+                            validation_data=validation_generator,
+                            validation_steps=validation_steps,
+                            verbose=1,
+                            class_weight=class_weights,
+                            callbacks=get_callbacks(model_file,
+                                                    initial_learning_rate=initial_learning_rate,
+                                                    learning_rate_drop=learning_rate_drop,
+                                                    learning_rate_epochs=learning_rate_epochs,
+                                                    learning_rate_patience=learning_rate_patience,
+                                                    early_stopping_patience=early_stopping_patience))
+    else:
+        model.fit_generator(generator=training_generator,
+                            steps_per_epoch=steps_per_epoch,
+                            epochs=n_epochs,
+                            validation_data=validation_generator,
+                            validation_steps=validation_steps,
+                            verbose=1,
+                            callbacks=get_callbacks(model_file,
+                                                    initial_learning_rate=initial_learning_rate,
+                                                    learning_rate_drop=learning_rate_drop,
+                                                    learning_rate_epochs=learning_rate_epochs,
+                                                    learning_rate_patience=learning_rate_patience,
+                                                    early_stopping_patience=early_stopping_patience))
+

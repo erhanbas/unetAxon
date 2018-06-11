@@ -7,8 +7,9 @@ config = initconfig()
 from unet.model import unet3D
 from unet.generator import get_generators
 from unet.training import load_old_model, train_model
-from utils.io_utils import fetch_train_data
+from utils.io_utils import preload_data
 from keras.utils import plot_model
+import numpy as np
 
 
 # from sklearn.model_selection import train_test_split
@@ -44,8 +45,8 @@ from keras.utils import plot_model
 def main():
     overwrite = True
     # training data handle
-    input_raw_handle = fetch_train_data(config['data_file'])
-    input_label_handle = fetch_train_data(config['label_file'])
+    input_raw_handle = preload_data(config['data_file'])
+    input_label_handle = preload_data(config['label_file'])
 
     # load model
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -57,6 +58,11 @@ def main():
     print(model.summary())
 
     # generators for training and validation with augmentation
+
+    class_frequencies = np.array([np.prod(input_label_handle.shape)-np.sum(input_label_handle[:]>0),np.sum(input_label_handle[:]>0)])
+    class_weights = class_frequencies.sum() / class_frequencies.astype(np.float32)
+    # class_weights = class_weights ** 0.5
+    print (class_weights)
 
     train_generator, validation_generator, n_train_steps, n_validation_steps = get_generators(
         input_raw_handle, input_label_handle,
@@ -74,12 +80,8 @@ def main():
     fh = open('report2.txt', 'w')
     model.summary(print_fn=lambda x: fh.write(x + '\n'))
     fh.close()
-    plot_model(model, to_file='model.png')
+    # plot_model(model, to_file='model.png')
 
-    # class_frequencies = np.array([1221018,  221993,  195389])
-    # class_weights = class_frequencies.sum() / class_frequencies.astype(np.float32)
-    # class_weights = class_weights ** 0.5
-    # print (class_weights)
     # TODO: add sample weights
 
         # run training
@@ -94,7 +96,7 @@ def main():
                 learning_rate_patience=config["patience"],
                 early_stopping_patience=config["early_stop"],
                 n_epochs=config["n_epochs"],
-                sample_weights=sample_weights)
+                class_weights=class_weights)
 
 
 
