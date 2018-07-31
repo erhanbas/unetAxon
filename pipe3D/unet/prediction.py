@@ -69,7 +69,7 @@ def patch_wise_prediction(model, data, overlap=0, batch_size=1, permute=False,la
         (2. * intersection + 1) / (K.sum(y_true_f) + K.sum(y_pred_f) + 1)
 
         from unet.metrics import dice_coefficient
-        er=dice_coefficient(K.cast_to_floatx(batch_y[None,...]),K.cast_to_floatx(prediction))
+        er=dice_coefficient(K.cast_to_floatx(y_true[None,...]),K.cast_to_floatx(prediction))
         K.eval(er)
 
 

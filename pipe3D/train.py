@@ -40,8 +40,6 @@ import numpy as np
 ###############################################################################################
 
 
-
-
 def main():
     overwrite = True
     # training data handle
@@ -59,10 +57,11 @@ def main():
 
     # generators for training and validation with augmentation
 
-    class_frequencies = np.array([np.prod(input_label_handle.shape)-np.sum(input_label_handle[:]>0),np.sum(input_label_handle[:]>0)])
-    class_weights = class_frequencies.sum() / class_frequencies.astype(np.float32)
-    # class_weights = class_weights ** 0.5
-    print (class_weights)
+    # class_frequencies = np.array([np.prod(input_label_handle.shape)-np.sum(input_label_handle[:]>0),np.sum(input_label_handle[:]>0)])
+    # class_weights = class_frequencies.sum() / class_frequencies.astype(np.float32)
+    # # class_weights = class_weights ** 0.5
+    class_weights = None
+    # print (class_weights)
 
     train_generator, validation_generator, n_train_steps, n_validation_steps = get_generators(
         input_raw_handle, input_label_handle,
@@ -70,6 +69,7 @@ def main():
         image_shape=config["image_shape"],
         split_file=config["split_file"],
         train_split_ratio=config["train_split_ratio"],
+        dist_transform = True,
         overwrite=overwrite,
         labels = None,
         augment = False,

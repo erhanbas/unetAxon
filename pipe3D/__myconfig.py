@@ -7,7 +7,7 @@ today = time.strftime('%Y%m%d-%H%M%S')
 def initconfig():
     config = dict()
     config["pool_size"] = (2, 2, 2)  # pool size for the max pooling operations
-    config["image_shape"] = (32, 32, 32)  # This determines what shape the images will be cropped/resampled to.
+    config["image_shape"] = (48, 48, 48)  # This determines what shape the images will be cropped/resampled to.
     config["patch_shape"] = None  # switch to None to train on the whole image
     config["labels"] = (0, 1)  # the label numbers on the input image
     config["n_labels"] = len(config["labels"])
@@ -22,7 +22,7 @@ def initconfig():
     # config["truth_channel"] = config["nb_channels"]
     config["deconvolution"] = True  # if False, will use upsampling instead of deconvolution
 
-    config["batch_size"] = 6
+    config["batch_size"] = 12
     config["validation_batch_size"] = 12
     config["n_epochs"] = 500  # cutoff the training after this many epochs
     config["patience"] = 10  # learning rate will be reduced after this many epochs if the validation loss is not improving
@@ -39,8 +39,9 @@ def initconfig():
     config["skip_blank"] = True  # if True, then patches without any target will be skipped
 
     config["data_file"] = "2017-09-25_G-007_consensus-training_raw.h5:volume"
-    config["label_file"] = "2017-09-25_G-007_consensus-training_dense_label.h5:volume"
+    config["label_file"] = "2017-09-25_G-007_consensus-training_sparse_label.h5:volume"
     config["model_file"] = os.path.abspath('axon_segmentation_model_{}.h5'.format(today))
+    config["old_model_file"] = os.path.abspath('axon_segmentation_model_20180726-191007.h5')
     config["split_file"] = os.path.abspath("split_ids.pkl")
     # config["training_file"] = os.path.abspath("training_ids.pkl")
     # config["validation_file"] = os.path.abspath("validation_ids.pkl")
