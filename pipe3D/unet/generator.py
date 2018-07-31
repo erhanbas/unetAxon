@@ -1,5 +1,5 @@
 import numpy as np
-from utils import io_utils
+from utils import io_utils, imageworks
 import nibabel as nib
 from nilearn.image import new_img_like, resample_to_img
 
@@ -81,10 +81,10 @@ def to_categorical(ylabels,labels=None):
 
     return ylabels_out
 
-def custom_generator(input_raw_handle,input_label_handle, index_list, image_shape, batch_size, labels=None, augment=False):
+def custom_generator(input_raw_handle,input_label_handle, index_list, image_shape, batch_size, labels=None, augment=False, dist_transform=False):
     """ creates a generator to iterate on training data in batches"""
     while True:
-        len_list = len(index_list)
+        len_list = len(index_list) # only use first 460 samples
         batch_size = np.minimum(len_list,batch_size)
         start_end = list(range(0, len_list - 1, batch_size))
         start_end.reverse()
@@ -100,22 +100,27 @@ def custom_generator(input_raw_handle,input_label_handle, index_list, image_shap
                 scale, flip, rotation = None
                 batch_x, batch_y = augment_data(batch_x,batch_y,scale,flip,rotation)
 
-            # convert to categorical variables, extend 1st dim for tf, last dim for th
-            batch_y = tf.keras.utils.to_categorical(batch_y,num_classes=2)
+            if dist_transform:
+                """Converts input label to distance transform. Makes more sense to do this as initialization, but for compactness added here"""
+                batch_y = imageworks.image2dist(batch_y)
+            else:
+                # convert to categorical variables, extend 1st dim for tf, last dim for th
+                batch_y = tf.keras.utils.to_categorical(batch_y,num_classes=2)
 
             yield batch_x, batch_y
 
 def get_generators(input_raw_handle, input_label_handle, batch_size, image_shape, split_file,
-                   train_split_ratio=0.66, overwrite=False, labels=None, augment=False,
+                   train_split_ratio=0.66, overwrite=False, labels=None, augment=False, dist_transform = False,
                    augment_flip=True, augment_distortion_factor=0.25, permute=False):
 
     num_sample, num_channel, depth, height, width = input_raw_handle.shape
+    num_sample = np.minimum(480,num_sample).__int__()
     train_list, test_list = split_data(overwrite, split_file, num_sample, train_split_ratio=train_split_ratio, random_seed=35)
 
     # training generator
-    train_generator = custom_generator(input_raw_handle,input_label_handle, train_list, image_shape, batch_size,augment=augment)
+    train_generator = custom_generator(input_raw_handle,input_label_handle, train_list, image_shape, batch_size,augment=augment,dist_transform=dist_transform)
     # testing generator
-    validation_generator = custom_generator(input_raw_handle,input_label_handle, test_list, image_shape, batch_size,augment=augment)
+    validation_generator = custom_generator(input_raw_handle,input_label_handle, test_list, image_shape, batch_size,augment=augment,dist_transform=dist_transform)
 
     n_train_steps = get_num_step(len(train_list),batch_size)
     n_validation_steps = get_num_step(len(test_list),batch_size)
