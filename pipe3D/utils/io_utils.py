@@ -18,14 +18,14 @@ def setup_paths():
     # setup paths/environments
     # set the path based on machine
     if socket.gethostname() == 'base-ws1':
-        datafold = '/data2/Dropbox (HHMI)/DATA/annotated_neuron'
+        datafold = '/nrs/mouselight/Users/base/annotated_neuron'
 
     elif socket.gethostname() == 'vega':
         # do nothing
-        datafold = '/groups/mousebrainmicro/mousebrainmicro/users/base/AnnotationData/h5repo/2017-09-25_G-007_consensus'
+        datafold = '/nrs/mouselight/Users/base/annotated_neuron'
     else:
         # do nothing
-        datafold = '/Users/base/Dropbox (HHMI)/DATA/annotated_neuron'
+        datafold = '/nrs/mouselight/Users/base/annotated_neuron'
     return datafold
 
 def preload_data(input_h5_file='2017-09-25_G-007_consensus-training_raw.h5:volume'):
