@@ -19,7 +19,7 @@ except ImportError:
 regress = True
 
 def generate_unet3D(input_shape, pool_size=(2, 2, 2), n_labels=1, initial_learning_rate=0.00001, deconvolution=False,
-                     depth=4, n_base_filters=32, include_label_wise_dice_coefficients=False, metrics=detection_metric,
+                     depth=2, n_base_filters=16, include_label_wise_dice_coefficients=False, metrics=detection_metric,
                      batch_normalization=False, activation_name="relu"):
     """
     Based on github repo of Isensee et al. for the BRATS 2017 competition:
@@ -85,7 +85,7 @@ def generate_unet3D(input_shape, pool_size=(2, 2, 2), n_labels=1, initial_learni
     # model.compile(optimizer=Adam(lr=initial_learning_rate), loss='binary_crossentropy')
     return model
 
-def create_convolution_block(input_layer, n_filters, batch_normalization=False, kernel=(3, 3, 3), activation=None,
+def create_convolution_block(input_layer, n_filters, batch_normalization=True, kernel=(3, 3, 3), activation=None,
                              padding='same', strides=(1, 1, 1), instance_normalization=False):
     """
 
@@ -100,14 +100,14 @@ def create_convolution_block(input_layer, n_filters, batch_normalization=False, 
     """
     layer = Conv3D(n_filters, kernel, padding=padding, strides=strides)(input_layer)
     if batch_normalization:
-        layer = BatchNormalization(axis=1)(layer)
+        layer = BatchNormalization(axis=-1)(layer)
     elif instance_normalization:
         try:
             from keras_contrib.layers.normalization import InstanceNormalization
         except ImportError:
             raise ImportError("Install keras_contrib in order to use instance normalization."
                               "\nTry: pip install git+https://www.github.com/farizrahman4u/keras-contrib.git")
-        layer = InstanceNormalization(axis=1)(layer)
+        layer = InstanceNormalization(axis=-1)(layer)
     if activation is None:
         return Activation('relu')(layer)
     else:

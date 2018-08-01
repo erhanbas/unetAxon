@@ -60,6 +60,9 @@ def main(argv):
     # training data handle
     input_raw_handle = preload_data(config['data_file'])
     input_label_handle = preload_data(config['label_file'])
+    input_raw_handle = input_raw_handle[:480,0,...]
+    input_raw_handle = np.expand_dims(input_raw_handle,axis=1)
+    input_label_handle = input_label_handle[:480,...]
 
     if gpu_id:
         os.environ['CUDA_VISIBLE_DEVICES'] = gpu_id

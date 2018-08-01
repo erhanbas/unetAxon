@@ -9,11 +9,9 @@ def initconfig():
     config["pool_size"] = (2, 2, 2)  # pool size for the max pooling operations
     config["image_shape"] = (48, 48, 48)  # This determines what shape the images will be cropped/resampled to.
     config["patch_shape"] = None  # switch to None to train on the whole image
-    config["labels"] = (0, 1)  # the label numbers on the input image
+    config["labels"] = (0,1)  # the label numbers on the input image
     config["n_labels"] = len(config["labels"])
-    # config["all_modalities"] = ["t1", "t1Gd", "flair", "t2"]
-    # config["training_modalities"] = config["all_modalities"]  # change this if you want to only use some of the modalities
-    config["nb_channels"] = 2
+    config["nb_channels"] = 1
     if "patch_shape" in config and config["patch_shape"] is not None:
         config["input_shape"] = tuple([config["nb_channels"]] + list(config["patch_shape"]))
     else:
@@ -31,7 +29,7 @@ def initconfig():
     config["learning_rate_drop"] = 0.5  # factor by which the learning rate will be reduced
     config["train_split_ratio"] = 0.8  # portion of the data that will be used for testing
     config["flip"] = False  # augments the data by randomly flipping an axis during
-    config["permute"] = True  # data shape must be a cube. Augments the data by permuting in various directions
+    config["permute"] = False  # data shape must be a cube. Augments the data by permuting in various directions
     config["distort"] = None  # switch to None if you want no distortion
     config["augment"] = config["flip"] or config["distort"]
     config["validation_patch_overlap"] = 0  # if > 0, during training, validation patches will be overlapping
@@ -41,7 +39,7 @@ def initconfig():
     config["data_file"] = "2017-09-25_G-007_consensus-training_raw.h5:volume"
     config["label_file"] = "2017-09-25_G-007_consensus-training_sparse_label.h5:volume"
     config["model_file"] = os.path.abspath('axon_segmentation_model_{}.h5'.format(today))
-    config["old_model_file"] = os.path.abspath('axon_segmentation_model_20180726-191007.h5')
+    config["old_model_file"] = os.path.abspath('axon_segmentation_model_20180731-175208.h5')
     config["split_file"] = os.path.abspath("split_ids.pkl")
     # config["training_file"] = os.path.abspath("training_ids.pkl")
     # config["validation_file"] = os.path.abspath("validation_ids.pkl")

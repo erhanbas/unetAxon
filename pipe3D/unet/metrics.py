@@ -71,3 +71,4 @@ def get_label_dice_coefficient_function(label_index):
 
 dice_coef = dice_coefficient
 dice_coef_loss = dice_coefficient_loss
+

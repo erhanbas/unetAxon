@@ -176,6 +176,7 @@ def run_validation_case(data_index, output_dir, model, raw_data, label_file=None
 
     if label_file:
         label_data = preload_data(label_file)
+        label = label_data[data_index]==1
     else:
         label_data = None
 
@@ -184,7 +185,18 @@ def run_validation_case(data_index, output_dir, model, raw_data, label_file=None
     if patch_shape == test_data.shape[1:4]:
         prediction = predict(model, test_data, permute=permute,label_data=label_data)
     else:
-        prediction = patch_wise_prediction(model=model, data=test_data, overlap=overlap, permute=permute,label_data=label_data)[np.newaxis]
+        raw_shape = test_data.shape[1:4]
+        image_shape = patch_shape
+        center_vox = np.round((np.asarray(raw_shape[1:-1]) + 1) / 2)
+
+        start_vox = np.asarray(center_vox - np.asarray(image_shape)/2,np.int)
+        end_vox = np.asarray(start_vox + image_shape,np.int)
+        batch_x = crop_image(test_data,start_vox,end_vox)
+        # batch_y = crop_image(label_data,start_vox,end_vox)
+        prediction = predict(model, batch_x, permute=permute)
+        plt.figure(0)
+        plt.imshow(np.max(prediction[0, ..., 0], axis=0))
+        # prediction = patch_wise_prediction(model=model, data=test_data, overlap=overlap, permute=permute,label_data=label_data)[np.newaxis]
     prediction_image = prediction_to_image(prediction, affine, label_map=output_label_map, threshold=threshold,
                                            labels=labels)
     if isinstance(prediction_image, list):
@@ -210,6 +222,8 @@ def run_validation_cases(split_keys_file, model_file, labels, raw_file, label_fi
 
     raw_data.close()
 
+def crop_image(input_image,start_vox,end_vox):
+    return input_image[:, start_vox[0]:end_vox[0], start_vox[1]:end_vox[1], start_vox[2]:end_vox[2],:]
 
 def predict(model, data, permute=False):
     if permute:
