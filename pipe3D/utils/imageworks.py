@@ -9,10 +9,13 @@ def image2dist(inputimage,target_label = 1, mask_thr = 0):
     """converts input label to normalized distance image
         maps skeleton to 0
     """
-    input_mask = np.greater(inputimage==target_label,mask_thr)
+    input_mask = np.greater(inputimage[:]==target_label,mask_thr)
     out = []
     for ind in range(input_mask.shape[0]):
-        input_data = np.asarray(input_mask[ind,...,0],np.float)
+        if np.ndim(input_mask)>4:
+            input_data = np.asarray(input_mask[ind,...,0],np.float)
+        else:
+            input_data = np.asarray(input_mask[ind, ...], np.float)
         # dist2boundary = distance_transform_edt(input_data)
         # out.append(sigmoid(dist2boundary-1)) # at boundary => 0.5
         dist2center = distance_transform_edt(input_data < 1)

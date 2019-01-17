@@ -64,7 +64,7 @@ def main(argv):
     input_raw_handle = np.expand_dims(input_raw_handle,axis=1)
     input_label_handle = input_label_handle[:480,...]
 
-    if gpu_id:
+    if False and gpu_id:
         os.environ['CUDA_VISIBLE_DEVICES'] = gpu_id
 
     # load model

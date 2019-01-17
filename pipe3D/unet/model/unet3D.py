@@ -22,7 +22,7 @@ def generate_unet3D(input_shape, pool_size=(2, 2, 2), n_labels=1, initial_learni
                      depth=2, n_base_filters=16, include_label_wise_dice_coefficients=False, metrics=detection_metric,
                      batch_normalization=False, activation_name="relu"):
     """
-    Based on github repo of Isensee et al. for the BRATS 2017 competition:
+    Based on Isensee et al. for the BRATS 2017 competition:
     https://www.cbica.upenn.edu/sbia/Spyridon.Bakas/MICCAI_BraTS/MICCAI_BraTS_2017_proceedings_shortPapers.pdf
 
     :param base_num_filters:

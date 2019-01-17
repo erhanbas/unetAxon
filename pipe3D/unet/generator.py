@@ -46,9 +46,9 @@ def crop_image(input_image,start_vox,end_vox):
     return input_image[:, start_vox[0]:end_vox[0], start_vox[1]:end_vox[1], start_vox[2]:end_vox[2],:]
 
 
-def fetch_data(input_raw_handle,input_label_handle,start,end,image_shape,augment=False):
-    batch_x = input_raw_handle[start:end]
-    batch_y = input_label_handle[start:end]
+def fetch_data(input_raw_handle,input_label_handle,these_inds,image_shape,augment=False):
+    batch_x = input_raw_handle[these_inds]
+    batch_y = input_label_handle[these_inds]
     batch_x = np.transpose(batch_x, (0, 2, 3, 4, 1)) # #/z/y/x/ch
     # TODO: fix permutation for label volume
     batch_y = batch_y[:,:,:,:,None]
@@ -90,11 +90,13 @@ def custom_generator(input_raw_handle,input_label_handle, index_list, image_shap
         start_end.reverse()
         affine = np.eye(4, 4)
         # in keras generators need to be infinitely iterable
+        # TODO: random shuffle is not effective, instead of list, switch to a array
         while len(start_end):
             start = start_end.pop()
             end = np.minimum(start + batch_size,len_list)
+            these_inds = index_list[start:end]
 
-            batch_x, batch_y = fetch_data(input_raw_handle,input_label_handle, start,end,image_shape,augment)
+            batch_x, batch_y = fetch_data(input_raw_handle,input_label_handle, these_inds,image_shape,augment)
             if augment:
                 """Augment data with flip/rotation/scale/etc..."""
                 scale, flip, rotation = None

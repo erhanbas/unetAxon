@@ -172,7 +172,7 @@ def run_validation_case(data_index, output_dir, model, raw_data, label_file=None
     affine = np.eye(4, 4)
     test_data = np.asarray([raw_data[data_index]])
     test_data = np.transpose(test_data, (0, 2, 3, 4, 1))
-    image = test_data[0]
+    image = test_data[0][...,0]
 
     if label_file:
         label_data = preload_data(label_file)

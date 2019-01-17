@@ -39,7 +39,7 @@ def initconfig():
     config["data_file"] = "2017-09-25_G-007_consensus-training_raw.h5:volume"
     config["label_file"] = "2017-09-25_G-007_consensus-training_sparse_label.h5:volume"
     config["model_file"] = os.path.abspath('axon_segmentation_model_{}.h5'.format(today))
-    config["old_model_file"] = os.path.abspath('axon_segmentation_model_20180731-175208.h5')
+    config["old_model_file"] = os.path.abspath('axon_segmentation_model_20180803-173808.h5')
     config["split_file"] = os.path.abspath("split_ids.pkl")
     # config["training_file"] = os.path.abspath("training_ids.pkl")
     # config["validation_file"] = os.path.abspath("validation_ids.pkl")

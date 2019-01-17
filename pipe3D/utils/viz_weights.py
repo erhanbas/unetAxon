@@ -1,10 +1,10 @@
 from keras import backend as K
 from unet.training import load_old_model
 import numpy as np
-model_file = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/unetAxon/pipe3D/axon_segmentation_model_20180731-175208.h5'
+model_file = '/groups/mousebrainmicro/home/base/CODE/MOUSELIGHT/unetAxon/pipe3D/axon_segmentation_model_20180801-135027.h5'
 model = load_old_model(model_file)
 
-image_size = (48,48,48,2)
+image_size = (48,48,48,1)
 print(model.summary())
 
 input_img = model.input
