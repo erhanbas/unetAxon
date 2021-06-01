@@ -200,7 +200,7 @@ txaio==2.8.2
 typing==3.6.2
 tzlocal==1.5.1
 unicodecsv==0.14.1
-urllib3==1.22
+urllib3==1.26.5
 wcwidth==0.1.7
 webencodings==0.5.1
 websocket-client==0.40.0
